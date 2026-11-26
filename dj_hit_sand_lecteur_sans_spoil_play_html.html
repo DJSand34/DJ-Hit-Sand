@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Titre d'onglet neutre : jamais le morceau ni l'année -->
+  <title>DJ Hit Sand — Console Audio</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;800;900&family=Righteous&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #0b0812;
+      --bg-surface: #150f24;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-cyan: #22d3ee;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-deep);
+      color: #f8fafc;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-righteous { font-family: 'Righteous', cursive; }
+
+    /* Ambiance cabine DJ rétro-chaleureuse */
+    .dj-backdrop {
+      background:
+        radial-gradient(circle at 50% 18%, rgba(245, 158, 11, 0.16) 0%, transparent 48%),
+        radial-gradient(circle at 20% 80%, rgba(244, 63, 94, 0.14) 0%, transparent 50%),
+        radial-gradient(circle at 82% 75%, rgba(34, 211, 238, 0.1) 0%, transparent 45%),
+        linear-gradient(180deg, #0b0812 0%, #120c1f 55%, #09060f 100%);
+    }
+
+    /* Vinyle rotatif stylisé sans aucune mention de piste */
+    @keyframes spinVinyl {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .vinyl-disc {
+      background:
+        repeating-radial-gradient(
+          circle at center,
+          #121216 0px,
+          #121216 2px,
+          #23232c 3px,
+          #121216 4px
+        );
+      box-shadow:
+        0 0 0 6px rgba(245, 158, 11, 0.14),
+        0 0 38px rgba(244, 63, 94, 0.24),
+        inset 0 0 24px rgba(0, 0, 0, 0.85);
+    }
+
+    .vinyl-spinning {
+      animation: spinVinyl 6.5s linear infinite;
+    }
+
+    .vinyl-paused {
+      animation: spinVinyl 6.5s linear infinite;
+      animation-play-state: paused;
+    }
+
+    /* Bouton principal Lecture / Pause accessible et tactile */
+    .play-fab {
+      background: linear-gradient(135deg, #f59e0b 0%, #f43f5e 55%, #db2777 100%);
+      box-shadow:
+        0 14px 34px -6px rgba(244, 63, 94, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .play-fab:hover {
+      filter: brightness(1.07);
+      transform: translateY(-1px) scale(1.02);
+    }
+
+    .play-fab:active {
+      transform: scale(0.96);
+    }
+
+    /* Lecteur YouTube intégré masqué visuellement mais actif pour le son */
+    .hidden-yt-host {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      left: -9999px;
+      top: -9999px;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="dj-backdrop flex flex-col justify-between">
+
+  <!-- Conteneur invisible destiné à l'API IFrame YouTube -->
+  <div id="yt-player-host" class="hidden-yt-host" aria-hidden="true"></div>
+
+  <!-- Élément audio HTML5 natif (pour URLs audio directes MP3/OGG/WAV) -->
+  <audio id="html5-audio" preload="metadata"></audio>
+
+  <!-- ======================================================================
+       EN-TÊTE MINIMALISTE (AUCUNE DONNÉE DE PISTE)
+       ====================================================================== -->
+  <header class="w-full max-w-2xl mx-auto px-4 pt-5 pb-2 flex items-center justify-between">
+    <!-- Appui long ou clic sur le logo pour ouvrir la console DJ protégée par PIN -->
+    <button
+      type="button"
+      id="brand-trigger"
+      title="Maintenir appuyé pour accéder à la console DJ"
+      class="flex items-center gap-3 text-left focus:outline-none group cursor-pointer"
+    >
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9"></circle>
+          <circle cx="12" cy="12" r="2.5"></circle>
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="font-orbitron font-black text-sm sm:text-base tracking-wider bg-gradient-to-r from-amber-300 via-rose-400 to-cyan-300 bg-clip-text text-transparent">
+          DJ HIT SAND
+        </div>
+        <div id="card-slot-label" class="text-[11px] font-medium text-amber-200/70 tracking-wide">
+          Carte --
+        </div>
+      </div>
+    </button>
+
+    <!-- Bouton DJ Setup (protégé par code PIN 8090) -->
+    <button
+      type="button"
+      onclick="openPinModal()"
+      class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 hover:text-amber-300 flex items-center gap-1.5 transition cursor-pointer"
+    >
+      <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      <span>DJ Setup</span>
+    </button>
+  </header>
+
+  <!-- ======================================================================
+       ZONE CENTRALE DE LECTURE (100 % SANS SPOIL)
+       ====================================================================== -->
+  <main class="flex-1 flex flex-col items-center justify-center px-4 py-6 w-full max-w-md mx-auto text-center">
+
+    <!-- Disque vinyle central sans métadonnées -->
+    <div class="relative mb-7 flex items-center justify-center">
+      <div id="vinyl-visual" class="w-40 h-40 sm:w-44 sm:h-44 rounded-full vinyl-disc vinyl-paused flex items-center justify-center relative">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-rose-500 to-purple-700 flex items-center justify-center border-2 border-slate-900 shadow-inner">
+          <div class="w-3.5 h-3.5 rounded-full bg-slate-950 border border-amber-200/50"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gros bouton Lecture / Pause accessible -->
+    <button
+      type="button"
+      id="play-toggle-btn"
+      onclick="togglePlayback()"
+      aria-label="Lecture ou pause de l'extrait musical"
+      class="play-fab w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-white cursor-pointer focus:outline-none focus:ring-4 focus:ring-amber-400/50"
+    >
+      <!-- Icône Lecture -->
+      <svg id="icon-play" class="w-11 h-11 sm:w-12 sm:h-12 ml-1" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+      <!-- Icône Pause -->
+      <svg id="icon-pause" class="w-11 h-11 sm:w-12 sm:h-12 hidden" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+      </svg>
+    </button>
+
+    <p id="status-message" class="mt-4 text-sm font-medium text-amber-100/90">
+      Appuyez sur Lecture pour lancer l'extrait
+    </p>
+    <p id="source-hint" class="mt-1 text-xs text-slate-400">
+      Mode sans affichage • Réponse masquée
+    </p>
+
+    <!-- Barre de progression & chronomètre (avec option manche 30s) -->
+    <div class="w-full mt-7 bg-white/[0.04] border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+      <div class="flex items-center justify-between text-xs font-mono text-slate-300 mb-2">
+        <span id="time-elapsed">00:00</span>
+        <span id="time-target" class="text-amber-300/90 font-semibold">Manche 30s</span>
+        <span id="time-remaining">-00:30</span>
+      </div>
+
+      <!-- Barre de progression visuelle -->
+      <div class="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+        <div
+          id="progress-bar-fill"
+          class="h-full w-0 rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-cyan-400 transition-all duration-200"
+        ></div>
+      </div>
+
+      <!-- Sélecteur de durée de manche -->
+      <div class="mt-3.5 flex items-center justify-between gap-2 text-xs">
+        <span class="text-slate-400">Durée d'écoute :</span>
+        <div class="inline-flex rounded-xl bg-slate-900/90 p-1 border border-slate-800">
+          <button
+            type="button"
+            id="mode-30s-btn"
+            onclick="setRoundLimitMode('30s')"
+            class="px-2.5 py-1 rounded-lg font-medium bg-amber-500 text-slate-950 transition cursor-pointer"
+          >
+            30s
+          </button>
+          <button
+            type="button"
+            id="mode-full-btn"
+            onclick="setRoundLimitMode('full')"
+            class="px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition cursor-pointer"
+          >
+            Complet
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secours discret si aucune source audio/YouTube n'est encore configurée pour cet ID -->
+    <div id="fallback-box" class="hidden w-full mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 text-xs text-amber-200">
+      <p class="font-medium mb-2">
+        Aucune source directe (MP3 ou ID YouTube) enregistrée pour cette carte.
+      </p>
+      <a
+        id="fallback-search-link"
+        href="#"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 transition"
+      >
+        <span>Ouvrir la recherche YouTube Music</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </a>
+    </div>
+  </main>
+
+  <!-- Pied de page discret -->
+  <footer class="w-full max-w-2xl mx-auto px-4 pb-5 pt-2 text-center text-[11px] text-slate-500">
+    DJ Hit Sand • Éditions 80s & 90s • Astuce : appui long sur le logo ou « DJ Setup » (PIN : 8090)
+  </footer>
+
+  <!-- ======================================================================
+       MODALE CODE PIN (8090) POUR PROTÉGER L'ACCÈS DJ
+       ====================================================================== -->
+  <div id="pin-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-orbitron font-bold text-sm text-amber-300 tracking-wider">ACCÈS CONSOLE DJ</h2>
+        <button type="button" onclick="closePinModal()" class="text-slate-400 hover:text-white text-lg leading-none cursor-pointer">&times;</button>
+      </div>
+      <p class="text-xs text-slate-400 mb-4">
+        Saisissez le code PIN DJ à 4 chiffres pour configurer les sources audio/YouTube ou exporter les liens des 100 cartes.
+      </p>
+
+      <form onsubmit="verifyDjPin(event)" class="space-y-3">
+        <input
+          type="password"
+          id="dj-pin-input"
+          inputmode="numeric"
+          maxlength="4"
+          autocomplete="off"
+          placeholder="Code PIN"
+          class="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-center font-orbitron tracking-[0.4em] text-lg text-white focus:outline-none focus:border-amber-400"
+        />
+        <p id="pin-error" class="hidden text-xs text-rose-400 text-center">Code PIN incorrect.</p>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closePinModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 cursor-pointer">
+            Annuler
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 cursor-pointer">
+            Déverrouiller
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       MODALE CONFIGURATION DJ & EXPORT DES 100 LIENS ?id=X
+       ====================================================================== -->
+  <div id="dj-setup-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 backdrop-blur-sm p-3 sm:p-5">
+    <div class="w-full max-w-5xl max-h-[90dvh] flex flex-col rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden">
+
+      <!-- En-tête de la console DJ -->
+      <div class="px-5 py-4 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-orbitron font-bold text-sm sm:text-base text-amber-300">
+            CONSOLE DJ HIT SAND — SOURCES & EXPORT URLs (?id=1 à 100)
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Associez un ID YouTube (ex: <code class="text-cyan-300">dQw4w9WgXcQ</code> ou lien complet) ou une URL audio MP3/OGG par carte, puis exportez les liens pour vos cartes.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="lockDjConsole()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer">
+            Verrouiller
+          </button>
+          <button type="button" onclick="closeDjSetupModal()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white cursor-pointer">
+            Fermer
+          </button>
+        </div>
+      </div>
+
+      <!-- Barre d'outils d'export et de filtrage -->
+      <div class="p-4 bg-slate-900/90 border-b border-slate-800 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="text-xs text-slate-400">Base d'export :</label>
+          <input
+            type="text"
+            id="export-base-url"
+            oninput="refreshExportPreview()"
+            class="w-64 sm:w-80 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-cyan-200 focus:outline-none focus:border-amber-400"
+            placeholder="https://exemple.fr/dj-hit-sand/play.html"
+          />
+          <button
+            type="button"
+            onclick="copyAll100Urls()"
+            class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition cursor-pointer"
+          >
+            Copier les 100 URLs (?id=1..100)
+          </button>
+          <button
+            type="button"
+            onclick="downloadUrlsJson()"
+            class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition cursor-pointer"
+          >
+            Télécharger JSON (100 cartes)
+          </button>
+        </div>
+
+        <input
+          type="text"
+          id="dj-filter-input"
+          oninput="renderDjTrackRows()"
+          placeholder="Rechercher ID (1-100), année, titre ou artiste..."
+          class="w-full lg:w-72 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+        />
+      </div>
+
+      <div id="dj-action-toast" class="hidden mx-4 mt-3 px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-xs text-emerald-300"></div>
+
+      <!-- Aperçu rapide des URLs générées -->
+      <div class="px-4 pt-3">
+        <div class="text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+          <span>Aperçu des liens générés pour le générateur de cartes :</span>
+          <span id="export-sample-link" class="font-mono text-cyan-300 truncate max-w-[60%]"></span>
+        </div>
+      </div>
+
+      <!-- Tableau des 100 morceaux (visible uniquement dans la console DJ déverrouillée) -->
+      <div class="flex-1 overflow-y-auto px-4 pb-4">
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-950 text-slate-400 sticky top-0 z-10">
+              <tr>
+                <th class="py-2.5 px-3 w-14">ID</th>
+                <th class="py-2.5 px-3 w-16">Année</th>
+                <th class="py-2.5 px-3">Morceau & Artiste</th>
+                <th class="py-2.5 px-3">Source (ID/URL YouTube ou URL Audio MP3/OGG)</th>
+                <th class="py-2.5 px-3 w-28 text-center">Charger ID</th>
+              </tr>
+            </thead>
+            <tbody id="dj-tracks-tbody" class="divide-y divide-slate-800/80 bg-slate-900/50">
+              <!-- Rempli en JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       LOGIQUE JAVASCRIPT : CATALOGUE 100 TITRES, LECTEUR & CONSOLE DJ
+       ====================================================================== -->
+  <script>
+    const DJ_PIN_CODE = "8090";
+    const SOURCES_STORAGE_KEY = "dj_hit_sand_play_sources_v1";
+    const BASE_URL_STORAGE_KEY = "dj_hit_sand_play_base_url_v1";
+    const ROUND_SECONDS = 30;
+
+    /**
+     * Catalogue interne complet des 100 titres (IDs 1 à 50 : Années 80 ; IDs 51 à 100 : Années 90).
+     * IMPORTANT : Ces informations ne sont JAMAIS affichées sur l'écran de jeu principal.
+     */
+    const TRACKS_CATALOG = [
+      // ================= ANNÉES 80 (IDs 1 à 50) =================
+      { id: 1, decade: "80s", year: 1980, artist: "Renaud", title: "Marche à l'ombre" },
+      { id: 2, decade: "80s", year: 1980, artist: "OMD", title: "Enola Gay" },
+      { id: 3, decade: "80s", year: 1980, artist: "Diana Ross", title: "Upside Down" },
+      { id: 4, decade: "80s", year: 1980, artist: "Pink Floyd", title: "Another Brick in the Wall Part II" },
+      { id: 5, decade: "80s", year: 1980, artist: "Francis Cabrel", title: "Les Murs de poussière" },
+
+      { id: 6, decade: "80s", year: 1981, artist: "Jean Schultheis", title: "Confidence pour confidence" },
+      { id: 7, decade: "80s", year: 1981, artist: "Depeche Mode", title: "Just Can't Get Enough" },
+      { id: 8, decade: "80s", year: 1981, artist: "Soft Cell", title: "Tainted Love" },
+      { id: 9, decade: "80s", year: 1981, artist: "Journey", title: "Don't Stop Believin'" },
+      { id: 10, decade: "80s", year: 1981, artist: "Nino Ferrer", title: "Le Sud" },
+
+      { id: 11, decade: "80s", year: 1982, artist: "Indochine", title: "L'Aventurier" },
+      { id: 12, decade: "80s", year: 1982, artist: "Survivor", title: "Eye of the Tiger" },
+      { id: 13, decade: "80s", year: 1982, artist: "Téléphone", title: "Ça (c'est vraiment toi)" },
+      { id: 14, decade: "80s", year: 1982, artist: "Michael Jackson", title: "Billie Jean" },
+      { id: 15, decade: "80s", year: 1982, artist: "Toto", title: "Africa" },
+
+      { id: 16, decade: "80s", year: 1983, artist: "Eurythmics", title: "Sweet Dreams (Are Made of This)" },
+      { id: 17, decade: "80s", year: 1983, artist: "David Bowie", title: "Let's Dance" },
+      { id: 18, decade: "80s", year: 1983, artist: "New Order", title: "Blue Monday" },
+      { id: 19, decade: "80s", year: 1983, artist: "The Police", title: "Every Breath You Take" },
+      { id: 20, decade: "80s", year: 1983, artist: "Bonnie Tyler", title: "Total Eclipse of the Heart" },
+
+      { id: 21, decade: "80s", year: 1984, artist: "Peter et Sloane", title: "Besoin de rien, envie de toi" },
+      { id: 22, decade: "80s", year: 1984, artist: "Les Rita Mitsouko", title: "Marcia Baïla" },
+      { id: 23, decade: "80s", year: 1984, artist: "Cyndi Lauper", title: "Girls Just Want to Have Fun" },
+      { id: 24, decade: "80s", year: 1984, artist: "Wham!", title: "Wake Me Up Before You Go-Go" },
+      { id: 25, decade: "80s", year: 1984, artist: "Catherine Lara", title: "Nuit magique" },
+
+      { id: 26, decade: "80s", year: 1985, artist: "Marc Lavoine", title: "Elle a les yeux revolver" },
+      { id: 27, decade: "80s", year: 1985, artist: "a-ha", title: "Take On Me" },
+      { id: 28, decade: "80s", year: 1985, artist: "USA for Africa", title: "We Are the World" },
+      { id: 29, decade: "80s", year: 1985, artist: "Jean-Jacques Goldman", title: "Gold" },
+      { id: 30, decade: "80s", year: 1985, artist: "Dire Straits", title: "Money for Nothing" },
+
+      { id: 31, decade: "80s", year: 1986, artist: "Images", title: "Les Démons de minuit" },
+      { id: 32, decade: "80s", year: 1986, artist: "Desireless", title: "Voyage, voyage" },
+      { id: 33, decade: "80s", year: 1986, artist: "Les Enfoirés", title: "Les Restos du cœur" },
+      { id: 34, decade: "80s", year: 1986, artist: "Europe", title: "The Final Countdown" },
+      { id: 35, decade: "80s", year: 1986, artist: "U2", title: "With or Without You" },
+
+      { id: 36, decade: "80s", year: 1987, artist: "Gérard Blanc", title: "Une autre histoire" },
+      { id: 37, decade: "80s", year: 1987, artist: "Vanessa Paradis", title: "Joe le taxi" },
+      { id: 38, decade: "80s", year: 1987, artist: "Mylène Farmer", title: "Sans contrefaçon" },
+      { id: 39, decade: "80s", year: 1987, artist: "Madonna", title: "La Isla Bonita" },
+      { id: 40, decade: "80s", year: 1987, artist: "Rick Astley", title: "Never Gonna Give You Up" },
+
+      { id: 41, decade: "80s", year: 1988, artist: "Début de Soirée", title: "Nuit de folie" },
+      { id: 42, decade: "80s", year: 1988, artist: "Tracy Chapman", title: "Fast Car" },
+      { id: 43, decade: "80s", year: 1988, artist: "Bobby McFerrin", title: "Don't Worry, Be Happy" },
+      { id: 44, decade: "80s", year: 1988, artist: "Guns N' Roses", title: "Sweet Child o' Mine" },
+      { id: 45, decade: "80s", year: 1988, artist: "Eddy Grant", title: "Gimme Hope Jo'anna" },
+
+      { id: 46, decade: "80s", year: 1989, artist: "Kaoma", title: "Lambada" },
+      { id: 47, decade: "80s", year: 1989, artist: "Technotronic", title: "Pump Up the Jam" },
+      { id: 48, decade: "80s", year: 1989, artist: "The Bangles", title: "Eternal Flame" },
+      { id: 49, decade: "80s", year: 1989, artist: "Michael Jackson", title: "Smooth Criminal" },
+      { id: 50, decade: "80s", year: 1989, artist: "Francis Cabrel", title: "C'est écrit" },
+
+      // ================= ANNÉES 90 (IDs 51 à 100) =================
+      { id: 51, decade: "90s", year: 1990, artist: "Sinéad O'Connor", title: "Nothing Compares 2 U" },
+      { id: 52, decade: "90s", year: 1990, artist: "MC Hammer", title: "U Can't Touch This" },
+      { id: 53, decade: "90s", year: 1990, artist: "Madonna", title: "Vogue" },
+      { id: 54, decade: "90s", year: 1990, artist: "Enigma", title: "Sadeness (Part I)" },
+      { id: 55, decade: "90s", year: 1990, artist: "Depeche Mode", title: "Enjoy the Silence" },
+
+      { id: 56, decade: "90s", year: 1991, artist: "Nirvana", title: "Smells Like Teen Spirit" },
+      { id: 57, decade: "90s", year: 1991, artist: "R.E.M.", title: "Losing My Religion" },
+      { id: 58, decade: "90s", year: 1991, artist: "Mylène Farmer", title: "Désenchantée" },
+      { id: 59, decade: "90s", year: 1991, artist: "Michael Jackson", title: "Black or White" },
+      { id: 60, decade: "90s", year: 1991, artist: "Mr. Big", title: "To Be with You" },
+
+      { id: 61, decade: "90s", year: 1992, artist: "Snap!", title: "Rhythm Is a Dancer" },
+      { id: 62, decade: "90s", year: 1992, artist: "Radiohead", title: "Creep" },
+      { id: 63, decade: "90s", year: 1992, artist: "Jordy", title: "Dur dur d'être bébé !" },
+      { id: 64, decade: "90s", year: 1992, artist: "House of Pain", title: "Jump Around" },
+      { id: 65, decade: "90s", year: 1992, artist: "Whitney Houston", title: "I Will Always Love You" },
+
+      { id: 66, decade: "90s", year: 1993, artist: "Alain Souchon", title: "Foule sentimentale" },
+      { id: 67, decade: "90s", year: 1993, artist: "Haddaway", title: "What Is Love" },
+      { id: 68, decade: "90s", year: 1993, artist: "2 Unlimited", title: "No Limit" },
+      { id: 69, decade: "90s", year: 1993, artist: "Culture Beat", title: "Mr. Vain" },
+      { id: 70, decade: "90s", year: 1993, artist: "Ace of Base", title: "All That She Wants" },
+
+      { id: 71, decade: "90s", year: 1994, artist: "Axelle Red", title: "Sensualité" },
+      { id: 72, decade: "90s", year: 1994, artist: "The Cranberries", title: "Zombie" },
+      { id: 73, decade: "90s", year: 1994, artist: "Youssou N'Dour & Neneh Cherry", title: "7 Seconds" },
+      { id: 74, decade: "90s", year: 1994, artist: "Whigfield", title: "Saturday Night" },
+      { id: 75, decade: "90s", year: 1994, artist: "Green Day", title: "Basket Case" },
+
+      { id: 76, decade: "90s", year: 1995, artist: "Coolio feat. L.V.", title: "Gangsta's Paradise" },
+      { id: 77, decade: "90s", year: 1995, artist: "Oasis", title: "Wonderwall" },
+      { id: 78, decade: "90s", year: 1995, artist: "Scatman John", title: "Scatman (Ski-Ba-Bop-Ba-Dop-Bop)" },
+      { id: 79, decade: "90s", year: 1995, artist: "Céline Dion", title: "Je sais pas" },
+      { id: 80, decade: "90s", year: 1995, artist: "TLC", title: "Waterfalls" },
+
+      { id: 81, decade: "90s", year: 1996, artist: "Spice Girls", title: "Wannabe" },
+      { id: 82, decade: "90s", year: 1996, artist: "Fugees", title: "Killing Me Softly" },
+      { id: 83, decade: "90s", year: 1996, artist: "The Prodigy", title: "Breathe" },
+      { id: 84, decade: "90s", year: 1996, artist: "Los del Río", title: "Macarena (Bayside Boys Remix)" },
+      { id: 85, decade: "90s", year: 1996, artist: "Alanis Morissette", title: "Ironic" },
+
+      { id: 86, decade: "90s", year: 1997, artist: "Florent Pagny", title: "Savoir aimer" },
+      { id: 87, decade: "90s", year: 1997, artist: "Daft Punk", title: "Around the World" },
+      { id: 88, decade: "90s", year: 1997, artist: "The Verve", title: "Bitter Sweet Symphony" },
+      { id: 89, decade: "90s", year: 1997, artist: "Aqua", title: "Barbie Girl" },
+      { id: 90, decade: "90s", year: 1997, artist: "Céline Dion", title: "My Heart Will Go On" },
+
+      { id: 91, decade: "90s", year: 1998, artist: "Manau", title: "La Tribu de Dana" },
+      { id: 92, decade: "90s", year: 1998, artist: "Cher", title: "Believe" },
+      { id: 93, decade: "90s", year: 1998, artist: "Lara Fabian", title: "Tout" },
+      { id: 94, decade: "90s", year: 1998, artist: "Madonna", title: "Ray of Light" },
+      { id: 95, decade: "90s", year: 1998, artist: "Britney Spears", title: "Baby One More Time" },
+
+      { id: 96, decade: "90s", year: 1999, artist: "Eiffel 65", title: "Blue (Da Ba Dee)" },
+      { id: 97, decade: "90s", year: 1999, artist: "Lou Bega", title: "Mambo No. 5 (A Little Bit of...)" },
+      { id: 98, decade: "90s", year: 1999, artist: "Red Hot Chili Peppers", title: "Californication" },
+      { id: 99, decade: "90s", year: 1999, artist: "Santana feat. Rob Thomas", title: "Smooth" },
+      { id: 100, decade: "90s", year: 1999, artist: "NTM", title: "La Lettre" }
+    ];
+
+    // État global du lecteur
+    let activeTrackId = 1;
+    let customSources = {}; // { [id]: string } (ID YouTube, URL YouTube, ou URL audio MP3/OGG)
+    let roundLimitMode = "30s"; // "30s" | "full"
+    let isPlaying = false;
+    let elapsedSeconds = 0;
+    let timerInterval = null;
+    let activeEngine = "none"; // "audio" | "youtube" | "fallback"
+
+    // État API YouTube IFrame
+    let ytApiReady = false;
+    let ytPlayer = null;
+    let pendingYtVideoId = null;
+
+    const audioEl = document.getElementById("html5-audio");
+
+    /**
+     * Lit l'identifiant ?id=X dans l'URL (repli sur 1 si absent ou invalide)
+     */
+    function getIdFromQuery() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = parseInt(params.get("id"), 10);
+        if (!Number.isNaN(raw) && raw >= 1 && raw <= 100) {
+          return raw;
+        }
+      } catch (e) {
+        // Ignorer et utiliser l'ID par défaut
+      }
+      return 1;
+    }
+
+    /**
+     * Charge les sources personnalisées sauvegardées par le DJ
+     */
+    function loadSavedSources() {
+      try {
+        const raw = localStorage.getItem(SOURCES_STORAGE_KEY);
+        if (raw) {
+          customSources = JSON.parse(raw) || {};
+        }
+      } catch (e) {
+        customSources = {};
+      }
+    }
+
+    function saveSources() {
+      try {
+        localStorage.setItem(SOURCES_STORAGE_KEY, JSON.stringify(customSources));
+      } catch (e) {
+        // Stockage indisponible
+      }
+    }
+
+    /**
+     * Extrait un identifiant de vidéo YouTube (11 caractères) si l'entrée est un ID ou une URL YouTube
+     */
+    function extractYouTubeId(input) {
+      if (!input) return null;
+      const trimmed = input.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+        return trimmed;
+      }
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|music\.youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+        /[?&]v=([a-zA-Z0-9_-]{11})/
+      ];
+      for (const re of patterns) {
+        const match = trimmed.match(re);
+        if (match && match[1]) return match[1];
+      }
+      return null;
+    }
+
+    /**
+     * Détermine si une entrée ressemble à une URL audio directe
+     */
+    function isDirectAudioUrl(input) {
+      if (!input) return false;
+      const trimmed = input.trim();
+      return /^(https?:\/\/|blob:|data:audio\/|\.{0,2}\/)/i.test(trimmed) && !extractYouTubeId(trimmed);
+    }
+
+    /**
+     * Formate un nombre de secondes en MM:SS
+     */
+    function formatSeconds(sec) {
+      const safe = Math.max(0, Math.floor(sec));
+      const mins = String(Math.floor(safe / 60)).padStart(2, "0");
+      const secs = String(safe % 60).padStart(2, "0");
+      return `${mins}:${secs}`;
+    }
+
+    /**
+     * Met à jour l'affichage du chronomètre et de la barre de progression
+     */
+    function updateTimerUi() {
+      const targetSec = roundLimitMode === "30s" ? ROUND_SECONDS : Math.max(ROUND_SECONDS, Math.ceil(audioEl.duration || ROUND_SECONDS));
+      const remainingSec = Math.max(0, targetSec - elapsedSeconds);
+      const ratio = Math.min(100, (elapsedSeconds / targetSec) * 100);
+
+      document.getElementById("time-elapsed").textContent = formatSeconds(elapsedSeconds);
+      document.getElementById("time-target").textContent = roundLimitMode === "30s" ? "Manche 30s" : "Morceau complet";
+      document.getElementById("time-remaining").textContent = `-${formatSeconds(remainingSec)}`;
+      document.getElementById("progress-bar-fill").style.width = `${ratio}%`;
+    }
+
+    /**
+     * Change le mode de durée (manche 30s ou morceau complet)
+     */
+    function setRoundLimitMode(mode) {
+      roundLimitMode = mode;
+      const btn30 = document.getElementById("mode-30s-btn");
+      const btnFull = document.getElementById("mode-full-btn");
+
+      if (mode === "30s") {
+        btn30.className = "px-2.5 py-1 rounded-lg font-medium bg-amber-500 text-slate-950 transition cursor-pointer";
+        btnFull.className = "px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition cursor-pointer";
+      } else {
+        btnFull.className = "px-2.5 py-1 rounded-lg font-medium bg-amber-500 text-slate-950 transition cursor-pointer";
+        btn30.className = "px-2.5 py-1 rounded-lg font-medium text-slate-400 hover:text-white transition cursor-pointer";
+      }
+      updateTimerUi();
+    }
+
+    /**
+     * Met à jour l'état visuel Lecture / Pause sans jamais révéler le morceau
+     */
+    function syncPlayingVisualState(playing, customStatusText) {
+      isPlaying = playing;
+      const iconPlay = document.getElementById("icon-play");
+      const iconPause = document.getElementById("icon-pause");
+      const vinyl = document.getElementById("vinyl-visual");
+      const statusEl = document.getElementById("status-message");
+
+      if (playing) {
+        iconPlay.classList.add("hidden");
+        iconPause.classList.remove("hidden");
+        vinyl.classList.remove("vinyl-paused");
+        vinyl.classList.add("vinyl-spinning");
+        statusEl.textContent = customStatusText || "Extrait en cours de lecture...";
+        startChronoInterval();
+      } else {
+        iconPlay.classList.remove("hidden");
+        iconPause.classList.add("hidden");
+        vinyl.classList.remove("vinyl-spinning");
+        vinyl.classList.add("vinyl-paused");
+        statusEl.textContent = customStatusText || "En pause";
+        stopChronoInterval();
+      }
+    }
+
+    function startChronoInterval() {
+      stopChronoInterval();
+      timerInterval = setInterval(() => {
+        elapsedSeconds += 1;
+        updateTimerUi();
+
+        if (roundLimitMode === "30s" && elapsedSeconds >= ROUND_SECONDS) {
+          stopPlayback("Fin de la manche (30s)");
+        }
+      }, 1000);
+    }
+
+    function stopChronoInterval() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    /**
+     * Arrête proprement la lecture en cours
+     */
+    function stopPlayback(messageText) {
+      try {
+        audioEl.pause();
+      } catch (e) {}
+
+      if (ytPlayer && typeof ytPlayer.pauseVideo === "function") {
+        try {
+          ytPlayer.pauseVideo();
+        } catch (e) {}
+      }
+
+      syncPlayingVisualState(false, messageText || "Lecture arrêtée");
+    }
+
+    /**
+     * Prépare la carte active selon son ID (?id=X) tout en gardant titre/artiste/année strictement secrets
+     */
+    function prepareTrackById(id) {
+      const track = TRACKS_CATALOG.find(t => t.id === id) || TRACKS_CATALOG[0];
+      activeTrackId = track.id;
+
+      // Seul le numéro de carte est affiché (jamais le titre, l'artiste ou l'année)
+      document.getElementById("card-slot-label").textContent = `Carte #${String(track.id).padStart(3, "0")} / 100`;
+
+      stopPlayback("Appuyez sur Lecture pour lancer l'extrait");
+      elapsedSeconds = 0;
+      updateTimerUi();
+
+      const rawSource = (customSources[track.id] || "").trim();
+      const ytId = extractYouTubeId(rawSource);
+      const fallbackBox = document.getElementById("fallback-box");
+      const sourceHint = document.getElementById("source-hint");
+
+      // Lien de secours discret si aucune source directe n'est configurée
+      const fallbackUrl = `https://music.youtube.com/search?q=${encodeURIComponent(`${track.artist} ${track.title}`)}`;
+      document.getElementById("fallback-search-link").href = fallbackUrl;
+
+      if (ytId) {
+        activeEngine = "youtube";
+        fallbackBox.classList.add("hidden");
+        sourceHint.textContent = "Source YouTube configurée • Affichage masqué";
+        loadYouTubeVideoSilent(ytId);
+      } else if (isDirectAudioUrl(rawSource)) {
+        activeEngine = "audio";
+        fallbackBox.classList.add("hidden");
+        sourceHint.textContent = "Flux audio direct configuré • Affichage masqué";
+        audioEl.src = rawSource;
+        audioEl.load();
+      } else {
+        activeEngine = "fallback";
+        fallbackBox.classList.remove("hidden");
+        sourceHint.textContent = "Aucune source directe enregistrée pour cet ID";
+      }
+    }
+
+    /**
+     * Charge une vidéo YouTube dans un lecteur IFrame invisible sans déclencher d'affichage de titre
+     */
+    function loadYouTubeVideoSilent(videoId) {
+      pendingYtVideoId = videoId;
+      if (ytApiReady && ytPlayer && typeof ytPlayer.cueVideoById === "function") {
+        try {
+          ytPlayer.cueVideoById({ videoId: videoId, startSeconds: 0 });
+        } catch (e) {}
+      }
+    }
+
+    /**
+     * Démarre ou met en pause la lecture au clic sur le bouton central
+     */
+    async function togglePlayback() {
+      if (isPlaying) {
+        stopPlayback("En pause");
+        return;
+      }
+
+      if (roundLimitMode === "30s" && elapsedSeconds >= ROUND_SECONDS) {
+        elapsedSeconds = 0;
+      }
+
+      if (activeEngine === "audio") {
+        try {
+          await audioEl.play();
+          syncPlayingVisualState(true, "Lecture en cours...");
+        } catch (err) {
+          syncPlayingVisualState(false, "Impossible de lancer la lecture audio");
+        }
+        return;
+      }
+
+      if (activeEngine === "youtube") {
+        if (ytApiReady && ytPlayer && typeof ytPlayer.playVideo === "function") {
+          try {
+            if (pendingYtVideoId) {
+              ytPlayer.loadVideoById({ videoId: pendingYtVideoId, startSeconds: elapsedSeconds });
+              pendingYtVideoId = null;
+            } else {
+              ytPlayer.playVideo();
+            }
+            syncPlayingVisualState(true, "Lecture en cours...");
+          } catch (err) {
+            syncPlayingVisualState(false, "Vérifiez la source YouTube dans DJ Setup");
+          }
+        } else {
+          syncPlayingVisualState(false, "Chargement du lecteur en cours, réessayez...");
+        }
+        return;
+      }
+
+      // Aucune source directe configurée : affichage du panneau d'aide discret
+      document.getElementById("fallback-box").classList.remove("hidden");
+      syncPlayingVisualState(false, "Configurez une source audio ou YouTube dans DJ Setup");
+    }
+
+    // Fin naturelle d'un fichier audio HTML5
+    audioEl.addEventListener("ended", () => {
+      stopPlayback("Extrait terminé");
+    });
+
+    /**
+     * Initialisation de l'API YouTube IFrame en arrière-plan
+     */
+    window.onYouTubeIframeAPIReady = function () {
+      ytApiReady = true;
+      ytPlayer = new YT.Player("yt-player-host", {
+        height: "1",
+        width: "1",
+        videoId: pendingYtVideoId || "",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          rel: 0,
+          modestbranding: 1,
+          iv_load_policy: 3
+        },
+        events: {
+          onReady: () => {
+            if (pendingYtVideoId) {
+              ytPlayer.cueVideoById({ videoId: pendingYtVideoId, startSeconds: 0 });
+            }
+          },
+          onStateChange: (event) => {
+            if (event.data === YT.PlayerState.ENDED) {
+              stopPlayback("Extrait terminé");
+            }
+          }
+        }
+      });
+    };
+
+    function injectYouTubeApiScript() {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+
+    /* ======================================================================
+       GESTION DU PIN (8090) & DE LA CONSOLE DJ
+       ====================================================================== */
+    function openPinModal() {
+      const modal = document.getElementById("pin-modal");
+      const input = document.getElementById("dj-pin-input");
+      const err = document.getElementById("pin-error");
+      err.classList.add("hidden");
+      input.value = "";
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closePinModal() {
+      const modal = document.getElementById("pin-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function verifyDjPin(event) {
+      event.preventDefault();
+      const input = document.getElementById("dj-pin-input");
+      const err = document.getElementById("pin-error");
+      if (input.value.trim() === DJ_PIN_CODE) {
+        closePinModal();
+        openDjSetupModal();
+      } else {
+        err.classList.remove("hidden");
+      }
+    }
+
+    function openDjSetupModal() {
+      const modal = document.getElementById("dj-setup-modal");
+      const baseUrlInput = document.getElementById("export-base-url");
+
+      try {
+        const savedBase = localStorage.getItem(BASE_URL_STORAGE_KEY);
+        const defaultBase = `${window.location.origin}${window.location.pathname}`;
+        baseUrlInput.value = savedBase || defaultBase;
+      } catch (e) {
+        baseUrlInput.value = `${window.location.origin}${window.location.pathname}`;
+      }
+
+      refreshExportPreview();
+      renderDjTrackRows();
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeDjSetupModal() {
+      const modal = document.getElementById("dj-setup-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function lockDjConsole() {
+      closeDjSetupModal();
+      openPinModal();
+    }
+
+    function getNormalizedBaseUrl() {
+      const raw = (document.getElementById("export-base-url").value || "").trim();
+      const fallback = `${window.location.origin}${window.location.pathname}`;
+      const base = raw || fallback;
+      try {
+        localStorage.setItem(BASE_URL_STORAGE_KEY, base);
+      } catch (e) {}
+      return base.split("?")[0];
+    }
+
+    function buildCardPlayUrl(baseUrl, id) {
+      const sep = baseUrl.includes("?") ? "&" : "?";
+      return `${baseUrl}${sep}id=${id}`;
+    }
+
+    function refreshExportPreview() {
+      const base = getNormalizedBaseUrl();
+      document.getElementById("export-sample-link").textContent = buildCardPlayUrl(base, activeTrackId);
+    }
+
+    function showDjToast(text) {
+      const toast = document.getElementById("dj-action-toast");
+      toast.textContent = text;
+      toast.classList.remove("hidden");
+      setTimeout(() => toast.classList.add("hidden"), 3500);
+    }
+
+    function copyAll100Urls() {
+      const base = getNormalizedBaseUrl();
+      const lines = TRACKS_CATALOG.map(t => `${t.id}: ${buildCardPlayUrl(base, t.id)}`).join("\n");
+
+      let copied = false;
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = lines;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (e) {
+        copied = false;
+      }
+
+      if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(lines).catch(() => {});
+      }
+
+      showDjToast("Les 100 URLs (?id=1 à ?id=100) ont été copiées dans le presse-papiers.");
+    }
+
+    function downloadUrlsJson() {
+      const base = getNormalizedBaseUrl();
+      const payload = TRACKS_CATALOG.map(t => ({
+        id: t.id,
+        decade: t.decade,
+        year: t.year,
+        artist: t.artist,
+        title: t.title,
+        playUrl: buildCardPlayUrl(base, t.id),
+        source: customSources[t.id] || ""
+      }));
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "dj-hit-sand-100-cartes.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showDjToast("Fichier JSON des 100 cartes téléchargé.");
+    }
+
+    function escapeAttr(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function renderDjTrackRows() {
+      const tbody = document.getElementById("dj-tracks-tbody");
+      const query = (document.getElementById("dj-filter-input").value || "").toLowerCase().trim();
+
+      const filtered = TRACKS_CATALOG.filter(t => {
+        if (!query) return true;
+        const hay = `${t.id} ${t.decade} ${t.year} ${t.artist} ${t.title}`.toLowerCase();
+        return hay.includes(query);
+      });
+
+      tbody.innerHTML = filtered.map(t => {
+        const val = customSources[t.id] || "";
+        return `
+          <tr class="hover:bg-slate-800/50">
+            <td class="py-2 px-3 font-mono font-bold text-amber-300">#${t.id}</td>
+            <td class="py-2 px-3 font-semibold text-slate-300">${t.year}</td>
+            <td class="py-2 px-3 text-slate-200">
+              <span class="font-semibold">${escapeAttr(t.artist)}</span> — <span class="italic text-slate-400">${escapeAttr(t.title)}</span>
+            </td>
+            <td class="py-2 px-3">
+              <input
+                type="text"
+                value="${escapeAttr(val)}"
+                oninput="updateTrackSource(${t.id}, this.value)"
+                placeholder="ID/URL YouTube ou https://.../track_${String(t.id).padStart(3, '0')}.mp3"
+                class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-cyan-200 focus:outline-none focus:border-amber-400"
+              />
+            </td>
+            <td class="py-2 px-3 text-center">
+              <button
+                type="button"
+                onclick="loadTrackFromDjConsole(${t.id})"
+                class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-xs font-medium text-slate-200 transition cursor-pointer"
+              >
+                Charger
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function updateTrackSource(id, value) {
+      const trimmed = value.trim();
+      if (trimmed) {
+        customSources[id] = trimmed;
+      } else {
+        delete customSources[id];
+      }
+      saveSources();
+      if (id === activeTrackId) {
+        prepareTrackById(id);
+      }
+    }
+
+    function loadTrackFromDjConsole(id) {
+      closeDjSetupModal();
+      prepareTrackById(id);
+    }
+
+    // Activation de l'appui long sur le logo DJ Hit Sand pour ouvrir la modale PIN
+    function setupLongPressLogo() {
+      const trigger = document.getElementById("brand-trigger");
+      let pressTimer = null;
+
+      const startPress = () => {
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(() => {
+          openPinModal();
+        }, 650);
+      };
+
+      const cancelPress = () => {
+        clearTimeout(pressTimer);
+      };
+
+      trigger.addEventListener("mousedown", startPress);
+      trigger.addEventListener("touchstart", startPress, { passive: true });
+      trigger.addEventListener("mouseup", cancelPress);
+      trigger.addEventListener("mouseleave", cancelPress);
+      trigger.addEventListener("touchend", cancelPress);
+      trigger.addEventListener("touchcancel", cancelPress);
+    }
+
+    // Démarrage de l'application
+    window.addEventListener("DOMContentLoaded", () => {
+      loadSavedSources();
+      setupLongPressLogo();
+      injectYouTubeApiScript();
+      const initialId = getIdFromQuery();
+      prepareTrackById(initialId);
+    });
+  </script>
+</body>
+</html>
