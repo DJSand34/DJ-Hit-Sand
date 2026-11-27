@@ -681,6 +681,20 @@ let customSources = {
      * Charge les sources personnalisées sauvegardées par le DJ
      */
     function loadSavedSources() {
+  try {
+    const raw = localStorage.getItem(SOURCES_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) || {};
+      for (const [key, val] of Object.entries(saved)) {
+        if (val && String(val).trim() !== "") {
+          customSources[key] = val;
+        }
+      }
+    }
+  } catch (e) {
+    // On conserve customSources tel qu'il est défini dans le code
+  }
+}
       try {
         const raw = localStorage.getItem(SOURCES_STORAGE_KEY);
         if (raw) {
@@ -1206,7 +1220,8 @@ let customSources = {
 
     // Démarrage de l'application
     window.addEventListener("DOMContentLoaded", () => {
-      loadSavedSources();
+      
+ loadSavedSources();
       setupLongPressLogo();
       injectYouTubeApiScript();
       const initialId = getIdFromQuery();
