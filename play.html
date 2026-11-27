@@ -525,7 +525,129 @@
 
     // État global du lecteur
     let activeTrackId = 1;
-    let customSources = {}; // { [id]: string } (ID YouTube, URL YouTube, ou URL audio MP3/OGG)
+let customSources = {
+  // ================= ANNÉES 80 (IDs 1 à 50) =================
+  1: "https://www.youtube.com/watch?v=EHU6A3aG7iQ", // Renaud - Marche à l'ombre (1980)
+  2: "", // OMD - Enola Gay (1980)
+  3: "", // Diana Ross - Upside Down (1980)
+  4: "", // Pink Floyd - Another Brick in the Wall Part II (1980)
+  5: "", // Francis Cabrel - Les Murs de poussière (1980)
+
+  6: "", // Jean Schultheis - Confidence pour confidence (1981)
+  7: "", // Depeche Mode - Just Can't Get Enough (1981)
+  8: "", // Soft Cell - Tainted Love (1981)
+  9: "", // Journey - Don't Stop Believin' (1981)
+  10: "", // Nino Ferrer - Le Sud (1981)
+
+  11: "", // Indochine - L'Aventurier (1982)
+  12: "", // Survivor - Eye of the Tiger (1982)
+  13: "", // Téléphone - Ça (c'est vraiment toi) (1982)
+  14: "", // Michael Jackson - Billie Jean (1982)
+  15: "", // Toto - Africa (1982)
+
+  16: "", // Eurythmics - Sweet Dreams (Are Made of This) (1983)
+  17: "", // David Bowie - Let's Dance (1983)
+  18: "", // New Order - Blue Monday (1983)
+  19: "", // The Police - Every Breath You Take (1983)
+  20: "", // Bonnie Tyler - Total Eclipse of the Heart (1983)
+
+  21: "", // Peter et Sloane - Besoin de rien, envie de toi (1984)
+  22: "", // Les Rita Mitsouko - Marcia Baïla (1984)
+  23: "", // Cyndi Lauper - Girls Just Want to Have Fun (1984)
+  24: "", // Wham! - Wake Me Up Before You Go-Go (1984)
+  25: "", // Catherine Lara - Nuit magique (1984)
+
+  26: "", // Marc Lavoine - Elle a les yeux revolver (1985)
+  27: "", // a-ha - Take On Me (1985)
+  28: "", // USA for Africa - We Are the World (1985)
+  29: "", // Jean-Jacques Goldman - Gold (1985)
+  30: "", // Dire Straits - Money for Nothing (1985)
+
+  31: "", // Images - Les Démons de minuit (1986)
+  32: "", // Desireless - Voyage, voyage (1986)
+  33: "", // Les Enfoirés - Les Restos du cœur (1986)
+  34: "", // Europe - The Final Countdown (1986)
+  35: "", // U2 - With or Without You (1986)
+
+  36: "", // Gérard Blanc - Une autre histoire (1987)
+  37: "", // Vanessa Paradis - Joe le taxi (1987)
+  38: "", // Mylène Farmer - Sans contrefaçon (1987)
+  39: "", // Madonna - La Isla Bonita (1987)
+  40: "", // Rick Astley - Never Gonna Give You Up (1987)
+
+  41: "", // Début de Soirée - Nuit de folie (1988)
+  42: "", // Tracy Chapman - Fast Car (1988)
+  43: "", // Bobby McFerrin - Don't Worry, Be Happy (1988)
+  44: "", // Guns N' Roses - Sweet Child o' Mine (1988)
+  45: "", // Eddy Grant - Gimme Hope Jo'anna (1988)
+
+  46: "", // Kaoma - Lambada (1989)
+  47: "", // Technotronic - Pump Up the Jam (1989)
+  48: "", // The Bangles - Eternal Flame (1989)
+  49: "", // Michael Jackson - Smooth Criminal (1989)
+  50: "", // Francis Cabrel - C'est écrit (1989)
+
+  // ================= ANNÉES 90 (IDs 51 à 100) =================
+  51: "", // Sinéad O'Connor - Nothing Compares 2 U (1990)
+  52: "", // MC Hammer - U Can't Touch This (1990)
+  53: "", // Madonna - Vogue (1990)
+  54: "", // Enigma - Sadeness (Part I) (1990)
+  55: "", // Depeche Mode - Enjoy the Silence (1990)
+
+  56: "", // Nirvana - Smells Like Teen Spirit (1991)
+  57: "", // R.E.M. - Losing My Religion (1991)
+  58: "", // Mylène Farmer - Désenchantée (1991)
+  59: "", // Michael Jackson - Black or White (1991)
+  60: "", // Mr. Big - To Be with You (1991)
+
+  61: "", // Snap! - Rhythm Is a Dancer (1992)
+  62: "", // Radiohead - Creep (1992)
+  63: "", // Jordy - Dur dur d'être bébé ! (1992)
+  64: "", // House of Pain - Jump Around (1992)
+  65: "", // Whitney Houston - I Will Always Love You (1992)
+
+  66: "", // Alain Souchon - Foule sentimentale (1993)
+  67: "", // Haddaway - What Is Love (1993)
+  68: "", // 2 Unlimited - No Limit (1993)
+  69: "", // Culture Beat - Mr. Vain (1993)
+  70: "", // Ace of Base - All That She Wants (1993)
+
+  71: "", // Axelle Red - Sensualité (1994)
+  72: "", // The Cranberries - Zombie (1994)
+  73: "", // Youssou N'Dour & Neneh Cherry - 7 Seconds (1994)
+  74: "", // Whigfield - Saturday Night (1994)
+  75: "", // Green Day - Basket Case (1994)
+
+  76: "", // Coolio feat. L.V. - Gangsta's Paradise (1995)
+  77: "", // Oasis - Wonderwall (1995)
+  78: "", // Scatman John - Scatman (Ski-Ba-Bop-Ba-Dop-Bop) (1995)
+  79: "", // Céline Dion - Je sais pas (1995)
+  80: "", // TLC - Waterfalls (1995)
+
+  81: "", // Spice Girls - Wannabe (1996)
+  82: "", // Fugees - Killing Me Softly (1996)
+  83: "", // The Prodigy - Breathe (1996)
+  84: "", // Los del Río - Macarena (Bayside Boys Remix) (1996)
+  85: "", // Alanis Morissette - Ironic (1996)
+
+  86: "", // Florent Pagny - Savoir aimer (1997)
+  87: "", // Daft Punk - Around the World (1997)
+  88: "", // The Verve - Bitter Sweet Symphony (1997)
+  89: "", // Aqua - Barbie Girl (1997)
+  90: "", // Céline Dion - My Heart Will Go On (1997)
+
+  91: "", // Manau - La Tribu de Dana (1998)
+  92: "", // Cher - Believe (1998)
+  93: "", // Lara Fabian - Tout (1998)
+  94: "", // Madonna - Ray of Light (1998)
+  95: "", // Britney Spears - Baby One More Time (1998)
+
+  96: "", // Eiffel 65 - Blue (Da Ba Dee) (1999)
+  97: "", // Lou Bega - Mambo No. 5 (A Little Bit of...) (1999)
+  98: "", // Red Hot Chili Peppers - Californication (1999)
+  99: "", // Santana feat. Rob Thomas - Smooth (1999)
+  100: "" // NTM - La Lettre (1999)
+};
     let roundLimitMode = "30s"; // "30s" | "full"
     let isPlaying = false;
     let elapsedSeconds = 0;
